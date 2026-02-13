@@ -18,6 +18,51 @@ let
             )
         ),
 
-    AccessToken = Response[access_token]
+    AccessToken = Response[accessToken]
 in
     AccessToken
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let
+    Host = "https://api.oitchau.com.br",
+
+    // 1) Pega o token da sua outra query (a que já funciona e retorna o eyJ...)
+    Token = Token_Oitchau,   // <-- TROQUE aqui pelo nome EXATO da sua query do token
+
+    // 2) Parâmetros do endpoint
+    EmployeeUuid = "COLE_UM_EMPLOYEEUUID_AQUI",
+    Data = "2020-11-10",      // <-- pode trocar depois (YYYY-MM-DD)
+
+    // 3) Monta a chamada GET
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
+                    Query = [
+                        employeeUuid = EmployeeUuid,
+                        date = Data
+                    ],
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        )
+in
+    Response
+
