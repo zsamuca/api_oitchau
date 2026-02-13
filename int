@@ -66,3 +66,72 @@ let
 in
     Response
 
+
+
+
+
+
+
+
+
+let
+    Host = "https://api.oitchau.com.br",
+    Token = Token_Oitchau,   // <-- troque pro nome da sua query do token
+
+    Matricula = "12400343",
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees/find",
+                    Query = [ matricula = Matricula ],
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        )
+in
+    Response
+
+
+
+
+
+
+
+
+
+
+
+let
+    Host = "https://api.oitchau.com.br",
+    Token = Token_Oitchau,   // <-- nome da sua query do token
+
+    // pega o uuid da consulta anterior (troque o nome "EmployeeFind" pelo nome que você deu)
+    EmployeeUuid = EmployeeFind[uuid],
+
+    Data = "2025-12-31",
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
+                    Query = [
+                        employeeUuid = EmployeeUuid,
+                        date = Data
+                    ],
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        )
+in
+    Response
