@@ -21,22 +21,31 @@ let
             )
         ),
 
-    TotalsRecord = Response[totals],
+    Totals = Response[totals],
+    Carteiras = Record.FieldValues(Totals),
 
-    // Pega todas as carteiras
-    Carteiras = Record.FieldValues(TotalsRecord),
-
-    // Para cada carteira, pega todos os campos internos
-    ExtrairNumeros = (r as record) as number =>
+    // Converte qualquer coisa em número (se der)
+    ToNumber = (x as any) as number =>
         let
-            Valores = Record.FieldValues(r),
-            Numeros = List.Transform(Valores, each try Number.From(_) otherwise 0),
-            Soma = List.Sum(Numeros)
+            n = try Number.From(x) otherwise null
         in
-            Soma,
+            if n = null then 0 else n,
 
-    ListaSaldos = List.Transform(Carteiras, each ExtrairNumeros(_)),
+    // Soma uma "carteira" que pode ser:
+    // - número (ex.: -121)
+    // - record (ex.: [negative=0, positive=6] ou outros campos)
+    // - null
+    SomaCarteira = (c as any) as number =>
+        if c = null then
+            0
+        else if Value.Is(c, type number) then
+            c
+        else if Value.Is(c, type record) then
+            List.Sum(List.Transform(Record.FieldValues(c), each ToNumber(_)))
+        else
+            // Se vier texto ou outro tipo, tenta converter, senão 0
+            ToNumber(c),
 
-    SaldoMinutos = List.Sum(ListaSaldos)
+    SaldoMinutos = List.Sum(List.Transform(Carteiras, each SomaCarteira(_)))
 in
     SaldoMinutos
