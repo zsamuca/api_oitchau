@@ -21,20 +21,25 @@ let
             )
         ),
 
-    // O "totals" vem como Record com chaves (GUIDs) -> valores (Records)
     TotalsRecord = Response[totals],
-    TotalsTable = Record.ToTable(TotalsRecord),                 // colunas: Name, Value
-    Expanded = Table.ExpandRecordColumn(
-        TotalsTable,
-        "Value",
-        {"negative", "positive"},
-        {"negative", "positive"},
-        MissingField.UseNull
+
+    // TotalsRecord é um Record com várias chaves (GUIDs), cada uma com um Record dentro.
+    ValuesList = Record.FieldValues(TotalsRecord),
+
+    // Soma "negative" e "positive" de cada Record interno (se existir)
+    SumNeg = List.Sum(
+        List.Transform(
+            ValuesList,
+            each try Number.From(Record.Field(_, "negative")) otherwise 0
+        )
+    ),
+    SumPos = List.Sum(
+        List.Transform(
+            ValuesList,
+            each try Number.From(Record.Field(_, "positive")) otherwise 0
+        )
     ),
 
-    Neg = List.Sum(List.RemoveNulls(Expanded[negative])),
-    Pos = List.Sum(List.RemoveNulls(Expanded[positive])),
-
-    SaldoMinutos = Neg + Pos
+    SaldoMinutos = SumNeg + SumPos
 in
     SaldoMinutos
