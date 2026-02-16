@@ -3,45 +3,40 @@ let
     Host = "https://api.oitchau.com.br",
     Token = Token_Oitchau,
 
-    UrlResponse =
-        Web.Contents(
-            Host,
-            [
-                RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
-                Query = [
-                    employeeUuid = EmployeeUuid,
-                    date = Date.ToText(DataConsulta, "yyyy-MM-dd")
-                ],
-                Headers = [
-                    Authorization = "Bearer " & Token,
-                    Accept = "application/json"
-                ],
-                ManualStatusHandling = {400,401,403,404,408,429,500,502,503,504}
-            ]
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
+                    Query = [
+                        employeeUuid = EmployeeUuid,
+                        date = Date.ToText(DataConsulta, "yyyy-MM-dd")
+                    ],
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
         ),
 
-    Status = Value.Metadata(UrlResponse)[Response.Status],
-    BodyText = try Text.FromBinary(UrlResponse) otherwise null,
-    Json = try Json.Document(UrlResponse) otherwise null,
+    TotalsRecord = Response[totals],
 
-    Totals = try Json[totals] otherwise null,
-    ValuesList = if Totals = null then {} else Record.FieldValues(Totals),
+    // Pega todas as carteiras
+    Carteiras = Record.FieldValues(TotalsRecord),
 
-    GetNum = (r as any, fieldName as text) as number =>
+    // Para cada carteira, pega todos os campos internos
+    ExtrairNumeros = (r as record) as number =>
         let
-            v = try Record.Field(r, fieldName) otherwise null,
-            n = try Number.From(v) otherwise null
+            Valores = Record.FieldValues(r),
+            Numeros = List.Transform(Valores, each try Number.From(_) otherwise 0),
+            Soma = List.Sum(Numeros)
         in
-            if n = null then 0 else n,
+            Soma,
 
-    SumNeg = List.Sum(List.Transform(ValuesList, each GetNum(_, "negative"))),
-    SumPos = List.Sum(List.Transform(ValuesList, each GetNum(_, "positive"))),
-    SaldoMinutos = SumNeg + SumPos,
+    ListaSaldos = List.Transform(Carteiras, each ExtrairNumeros(_)),
 
-    Resultado = [
-        status = Status,
-        saldoMinutos = SaldoMinutos,
-        body = BodyText
-    ]
+    SaldoMinutos = List.Sum(ListaSaldos)
 in
-    Resultado
+    SaldoMinutos
