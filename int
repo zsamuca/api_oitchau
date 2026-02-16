@@ -1,169 +1,8 @@
-let
-    Host = "https://api.oitchau.com.br",
-    Body =
-        "{""client_id"":""SEU_CLIENT_ID""," &
-        """client_secret"":""SEU_CLIENT_SECRET""," &
-        """response_type"":""token""," &
-        """grant_type"":""client_credentials""}",
-
-    Response =
-        Json.Document(
-            Web.Contents(
-                Host,
-                [
-                    RelativePath = "v2/public/integrations_api/token",
-                    Headers = [#"Content-Type" = "application/json"],
-                    Content = Text.ToBinary(Body)
-                ]
-            )
-        ),
-
-    AccessToken = Response[accessToken]
-in
-    AccessToken
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-let
-    Host = "https://api.oitchau.com.br",
-
-    // 1) Pega o token da sua outra query (a que já funciona e retorna o eyJ...)
-    Token = Token_Oitchau,   // <-- TROQUE aqui pelo nome EXATO da sua query do token
-
-    // 2) Parâmetros do endpoint
-    EmployeeUuid = "COLE_UM_EMPLOYEEUUID_AQUI",
-    Data = "2020-11-10",      // <-- pode trocar depois (YYYY-MM-DD)
-
-    // 3) Monta a chamada GET
-    Response =
-        Json.Document(
-            Web.Contents(
-                Host,
-                [
-                    RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
-                    Query = [
-                        employeeUuid = EmployeeUuid,
-                        date = Data
-                    ],
-                    Headers = [
-                        Authorization = "Bearer " & Token,
-                        Accept = "application/json"
-                    ]
-                ]
-            )
-        )
-in
-    Response
-
-
-
-
-
-
-
-
-
-let
-    Host = "https://api.oitchau.com.br",
-    Token = Token_Oitchau,   // <-- troque pro nome da sua query do token
-
-    Matricula = "12400343",
-
-    Response =
-        Json.Document(
-            Web.Contents(
-                Host,
-                [
-                    RelativePath = "v2/public/integrations_api/employees/find",
-                    Query = [ matricula = Matricula ],
-                    Headers = [
-                        Authorization = "Bearer " & Token,
-                        Accept = "application/json"
-                    ]
-                ]
-            )
-        )
-in
-    Response
-
-
-
-
-
-
-
-
-
-
-
-let
-    Host = "https://api.oitchau.com.br",
-    Token = Token_Oitchau,   // <-- nome da sua query do token
-
-    // pega o uuid da consulta anterior (troque o nome "EmployeeFind" pelo nome que você deu)
-    EmployeeUuid = EmployeeFind[uuid],
-
-    Data = "2025-12-31",
-
-    Response =
-        Json.Document(
-            Web.Contents(
-                Host,
-                [
-                    RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
-                    Query = [
-                        employeeUuid = EmployeeUuid,
-                        date = Data
-                    ],
-                    Headers = [
-                        Authorization = "Bearer " & Token,
-                        Accept = "application/json"
-                    ]
-                ]
-            )
-        )
-in
-    Response
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+(EmployeeUuid as text, DataConsulta as date) =>
 let
     Host = "https://api.oitchau.com.br",
     Token = Token_Oitchau,
 
-    EmployeeUuid = Consulta_Matricula[uuid],   // <-- esse é o certo
-    Data = "2025-12-31",
-
     Response =
         Json.Document(
             Web.Contents(
@@ -172,7 +11,7 @@ let
                     RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
                     Query = [
                         employeeUuid = EmployeeUuid,
-                        date = Data
+                        date = Date.ToText(DataConsulta, "yyyy-MM-dd")
                     ],
                     Headers = [
                         Authorization = "Bearer " & Token,
@@ -180,6 +19,22 @@ let
                     ]
                 ]
             )
-        )
+        ),
+
+    // O "totals" vem como Record com chaves (GUIDs) -> valores (Records)
+    TotalsRecord = Response[totals],
+    TotalsTable = Record.ToTable(TotalsRecord),                 // colunas: Name, Value
+    Expanded = Table.ExpandRecordColumn(
+        TotalsTable,
+        "Value",
+        {"negative", "positive"},
+        {"negative", "positive"},
+        MissingField.UseNull
+    ),
+
+    Neg = List.Sum(List.RemoveNulls(Expanded[negative])),
+    Pos = List.Sum(List.RemoveNulls(Expanded[positive])),
+
+    SaldoMinutos = Neg + Pos
 in
-    Response
+    SaldoMinutos
