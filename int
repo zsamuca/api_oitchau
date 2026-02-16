@@ -135,3 +135,51 @@ let
         )
 in
     Response
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let
+    Host = "https://api.oitchau.com.br",
+    Token = Token_Oitchau,
+
+    EmployeeUuid = Consulta_Matricula[uuid],   // <-- esse é o certo
+    Data = "2025-12-31",
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
+                    Query = [
+                        employeeUuid = EmployeeUuid,
+                        date = Data
+                    ],
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        )
+in
+    Response
