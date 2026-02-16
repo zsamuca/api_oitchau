@@ -22,23 +22,18 @@ let
         ),
 
     TotalsRecord = Response[totals],
-
-    // TotalsRecord é um Record com várias chaves (GUIDs), cada uma com um Record dentro.
     ValuesList = Record.FieldValues(TotalsRecord),
 
-    // Soma "negative" e "positive" de cada Record interno (se existir)
-    SumNeg = List.Sum(
-        List.Transform(
-            ValuesList,
-            each try Number.From(Record.Field(_, "negative")) otherwise 0
-        )
-    ),
-    SumPos = List.Sum(
-        List.Transform(
-            ValuesList,
-            each try Number.From(Record.Field(_, "positive")) otherwise 0
-        )
-    ),
+    // Função auxiliar: pega um campo numérico ou devolve 0
+    GetNum = (r as any, fieldName as text) as number =>
+        let
+            v = try Record.Field(r, fieldName) otherwise null,
+            n = try Number.From(v) otherwise null
+        in
+            if n = null then 0 else n,
+
+    SumNeg = List.Sum(List.Transform(ValuesList, each GetNum(_, "negative"))),
+    SumPos = List.Sum(List.Transform(ValuesList, each GetNum(_, "positive"))),
 
     SaldoMinutos = SumNeg + SumPos
 in
