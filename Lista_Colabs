@@ -1,0 +1,23 @@
+let
+    Host = "https://api.oitchau.com.br",
+    Token = Token_Oitchau,
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees",
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        ),
+
+    content = Response[content],
+    tabela = Table.FromList(content, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    expandido = Table.ExpandRecordColumn(tabela, "Column1", {"uuid","matricula","fullName","active"}, {"uuid","matricula","nome","ativo"})
+in
+    expandido
