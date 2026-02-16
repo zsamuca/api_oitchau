@@ -1,0 +1,23 @@
+let
+    Host = "https://api.oitchau.com.br",
+    Body =
+        "{""client_id"":""login""," &
+        """client_secret"":""senha""," &
+        """response_type"":""token""," &
+        """grant_type"":""client_credentials""}",
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/token",
+                    Headers = [#"Content-Type" = "application/json"],
+                    Content = Text.ToBinary(Body)
+                ]
+            )
+        ),
+
+    AccessToken = Response[accessToken]
+in
+    AccessToken
