@@ -1,0 +1,14 @@
+let
+    DataInicial = #date(2025,1,1),
+    DataFinal = Date.From(DateTime.LocalNow()),
+
+    ListaDatas = List.Dates(
+        DataInicial,
+        Duration.Days(DataFinal - DataInicial)+1,
+        #duration(1,0,0,0)
+    ),
+
+    Tabela = Table.FromList(ListaDatas, Splitter.SplitByNothing(), {"Data"}),
+    Tipo = Table.TransformColumnTypes(Tabela,{{"Data", type date}})
+in
+    Tipo
