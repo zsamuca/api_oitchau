@@ -21,29 +21,29 @@ let
             )
         ),
 
-    Totals = Response[totals],
-    Carteiras = Record.FieldValues(Totals),
+    TotalsAny = try Response[totals] otherwise null,
 
-    // Converte qualquer coisa em número (se der)
+    // transforma TotalsAny em uma lista de "carteiras" (cada item pode ser número ou record)
+    Carteiras =
+        if TotalsAny = null then
+            {}
+        else if Value.Is(TotalsAny, type record) then
+            Record.FieldValues(TotalsAny)
+        else if Value.Is(TotalsAny, type list) then
+            TotalsAny
+        else
+            { TotalsAny },   // se vier número direto (0, -121, etc.)
+
     ToNumber = (x as any) as number =>
-        let
-            n = try Number.From(x) otherwise null
-        in
-            if n = null then 0 else n,
+        let n = try Number.From(x) otherwise null
+        in if n = null then 0 else n,
 
-    // Soma uma "carteira" que pode ser:
-    // - número (ex.: -121)
-    // - record (ex.: [negative=0, positive=6] ou outros campos)
-    // - null
     SomaCarteira = (c as any) as number =>
         if c = null then
             0
-        else if Value.Is(c, type number) then
-            c
         else if Value.Is(c, type record) then
             List.Sum(List.Transform(Record.FieldValues(c), each ToNumber(_)))
         else
-            // Se vier texto ou outro tipo, tenta converter, senão 0
             ToNumber(c),
 
     SaldoMinutos = List.Sum(List.Transform(Carteiras, each SomaCarteira(_)))
