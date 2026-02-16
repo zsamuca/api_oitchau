@@ -1,4 +1,4 @@
-(EmployeeUuid as text, DataConsulta as date) =>
+(Matricula as text) as nullable text =>
 let
     Host = "https://api.oitchau.com.br",
     Token = Token_Oitchau,
@@ -8,11 +8,8 @@ let
             Web.Contents(
                 Host,
                 [
-                    RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
-                    Query = [
-                        employeeUuid = EmployeeUuid,
-                        date = Date.ToText(DataConsulta, "yyyy-MM-dd")
-                    ],
+                    RelativePath = "v2/public/integrations_api/employees/find",
+                    Query = [ matricula = Matricula ],
                     Headers = [
                         Authorization = "Bearer " & Token,
                         Accept = "application/json"
@@ -21,20 +18,7 @@ let
             )
         ),
 
-    TotalsRecord = Response[totals],
-    ValuesList = Record.FieldValues(TotalsRecord),
-
-    // Função auxiliar: pega um campo numérico ou devolve 0
-    GetNum = (r as any, fieldName as text) as number =>
-        let
-            v = try Record.Field(r, fieldName) otherwise null,
-            n = try Number.From(v) otherwise null
-        in
-            if n = null then 0 else n,
-
-    SumNeg = List.Sum(List.Transform(ValuesList, each GetNum(_, "negative"))),
-    SumPos = List.Sum(List.Transform(ValuesList, each GetNum(_, "positive"))),
-
-    SaldoMinutos = SumNeg + SumPos
+    Conteudo = try Response[content] otherwise null,
+    Uuid = try Text.From(Conteudo[uuid]) otherwise null
 in
-    SaldoMinutos
+    Uuid
