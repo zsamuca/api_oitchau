@@ -1,0 +1,25 @@
+(Matricula as text) as nullable date =>
+let
+    Host = "https://api.oitchau.com.br",
+    Token = Token_Oitchau,
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees/find",
+                    Query = [ matricula = Matricula ],
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        ),
+
+    Conteudo = try Response[content] otherwise null,
+    StartText = try Text.From(Conteudo[startDate]) otherwise null,
+    StartDate = try Date.From(StartText) otherwise null
+in
+    StartDate
