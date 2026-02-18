@@ -1,0 +1,338 @@
+Documentação — Integração Power BI com API Oitchau (Banco de Horas)
+🎯 Objetivo do Projeto
+
+Construir uma base automática de histórico de saldo de banco de horas dos colaboradores ativos diretamente do sistema de ponto (Oitchau), sem exportação manual.
+
+A API não fornece um relatório pronto.
+Ela fornece dados atômicos (por colaborador e por data).
+
+Logo, o Power BI passa a atuar como um consumidor da API e também como um reconstrutor do histórico.
+
+🧠 Como funciona uma API (explicação essencial)
+
+Uma API REST funciona como um garçom:
+
+Você pede	API faz
+“saldo do João”	busca no banco
+“saldo em 31/12”	consulta snapshot
+“lista funcionários”	retorna cadastro
+
+Você não acessa o banco de dados diretamente.
+Você faz requisições HTTP.
+
+O Power BI está fazendo chamadas do tipo:
+
+https://api.oitchau.com.br/endpoint?parametros
+
+
+Cada chamada retorna um JSON.
+
+🪪 Etapa 1 — Autenticação (Token)
+Por quê?
+
+A API precisa saber quem você é.
+Você não usa login/senha → você usa Bearer Token.
+
+Isso segue o padrão OAuth2 Client Credentials.
+
+O fluxo real é:
+
+Client ID + Client Secret → Oitchau → Token → Permissão temporária
+
+
+Esse token é como um crachá temporário.
+
+Consulta criada: Token_Oitchau
+
+(essa você já tinha, então só documente:)
+
+Função:
+Obter token de acesso para todas as chamadas seguintes.
+
+Por que é necessário?
+Toda requisição da API exige o header:
+
+Authorization: Bearer TOKEN
+
+
+Sem isso → erro 401 (não autorizado).
+
+👥 Etapa 2 — Listar colaboradores
+Problema
+
+O endpoint de banco de horas não aceita matrícula.
+
+Ele exige:
+
+employeeUuid
+
+
+A matrícula é um dado humano.
+O UUID é a chave primária do banco de dados do sistema.
+
+Ou seja:
+
+Campo	Uso
+matrícula	RH usa
+uuid	sistema usa
+Endpoint utilizado
+GET /v2/public/integrations_api/employees
+
+Consulta criada: Lista_Funcionarios
+let
+    Host = "https://api.oitchau.com.br",
+    Token = Token_Oitchau,
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees",
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        ),
+
+    content = Response[content],
+    tabela = Table.FromList(content, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    expandido = Table.ExpandRecordColumn(tabela, "Column1", {"uuid","matricula","fullName","active"}, {"uuid","matricula","nome","ativo"})
+in
+    expandido
+
+Por que fizemos isso?
+
+Porque precisamos do uuid de cada colaborador para consultar o banco de horas.
+
+📅 Etapa 3 — Definir datas de consulta
+Problema encontrado
+
+Consultar todos os dias causaria:
+
+350 funcionários × 400 dias = 140.000 requisições
+
+
+Isso:
+
+demora horas
+
+pode bloquear a API
+
+pode expirar token
+
+Solução adotada
+
+Consultar apenas datas de fechamento bimestral + saldo atual (D-1).
+
+Consulta criada: Datas_Consulta_BH
+let
+    Hoje = Date.From(DateTime.LocalNow()),
+    Ontem = Date.AddDays(Hoje, -1),
+
+    DatasFixas2025 = {
+        #date(2025, 2, 28),
+        #date(2025, 4, 30),
+        #date(2025, 6, 30),
+        #date(2025, 8, 31),
+        #date(2025,10,31),
+        #date(2025,12,31)
+    },
+
+    Datas = List.Distinct(List.Combine({DatasFixas2025, {Ontem}})),
+    Tabela = Table.FromList(Datas, Splitter.SplitByNothing(), {"Data"}),
+    Tipo = Table.TransformColumnTypes(Tabela, {{"Data", type date}}),
+    Ordenado = Table.Sort(Tipo, {{"Data", Order.Ascending}})
+in
+    Ordenado
+
+Por que?
+
+A API retorna o saldo na data consultada, não um histórico pronto.
+
+Logo:
+
+Nós reconstruímos o histórico escolhendo pontos de referência.
+
+🧾 Etapa 4 — Buscar data de admissão
+Problema
+
+Admitidos em 2026 apareciam em 2025 com saldo 0.
+
+Isso não é correto.
+O correto é null (a pessoa ainda não existia na empresa).
+
+Endpoint utilizado
+GET /employees/find?matricula=XXXX
+
+Função criada: fnStartDatePorMatricula
+(Matricula as text) as nullable date =>
+let
+    Host = "https://api.oitchau.com.br",
+    Token = Token_Oitchau,
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees/find",
+                    Query = [ matricula = Matricula ],
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        ),
+
+    Conteudo = try Response[content] otherwise null,
+    StartText = try Text.From(Conteudo[startDate]) otherwise null,
+    StartDate = try Date.From(StartText) otherwise null
+in
+    StartDate
+
+🧮 Etapa 5 — Buscar saldo de banco de horas
+Endpoint principal
+/employees/hoursbank/totals
+
+
+Este endpoint retorna:
+
+o saldo acumulado do banco de horas naquela data específica.
+
+Problema importante descoberto
+
+O retorno da API não tem estrutura fixa.
+
+O campo totals pode ser:
+
+número
+
+record
+
+lista
+
+Ou seja, não dava pra assumir:
+
+positive / negative
+
+
+Precisamos ler dinamicamente.
+
+Função criada: fnBHHistorico
+(EmployeeUuid as text, DataConsulta as date) =>
+let
+    Host = "https://api.oitchau.com.br",
+    Token = Token_Oitchau,
+
+    Response =
+        Json.Document(
+            Web.Contents(
+                Host,
+                [
+                    RelativePath = "v2/public/integrations_api/employees/hoursbank/totals",
+                    Query = [
+                        employeeUuid = EmployeeUuid,
+                        date = Date.ToText(DataConsulta, "yyyy-MM-dd")
+                    ],
+                    Headers = [
+                        Authorization = "Bearer " & Token,
+                        Accept = "application/json"
+                    ]
+                ]
+            )
+        ),
+
+    TotalsAny = try Response[totals] otherwise null,
+
+    Carteiras =
+        if TotalsAny = null then
+            {}
+        else if Value.Is(TotalsAny, type record) then
+            Record.FieldValues(TotalsAny)
+        else if Value.Is(TotalsAny, type list) then
+            TotalsAny
+        else
+            { TotalsAny },
+
+    ToNumber = (x as any) as number =>
+        let n = try Number.From(x) otherwise null
+        in if n = null then 0 else n,
+
+    SomaCarteira = (c as any) as number =>
+        if c = null then
+            0
+        else if Value.Is(c, type record) then
+            List.Sum(List.Transform(Record.FieldValues(c), each ToNumber(_)))
+        else
+            ToNumber(c),
+
+    SaldoMinutos = List.Sum(List.Transform(Carteiras, each SomaCarteira(_)))
+in
+    SaldoMinutos
+
+Por que isso foi necessário?
+
+Porque a API não retorna “o saldo pronto”.
+Ela retorna carteiras internas do motor de jornada.
+
+Essa função reconstrói o saldo verdadeiro.
+
+🚦 Etapa 6 — Respeitar data de admissão
+
+Regra aplicada:
+
+if [Data] < [startDate] then null
+else fnBHHistorico([uuid], Date.From([Data]))
+
+Motivo
+
+Garantir consistência histórica:
+
+antes da admissão → null
+
+após admissão → saldo válido
+
+📊 Etapa 7 — Colunas finais
+
+Saldo em horas:
+
+if [SaldoMinutos] = null then null else [SaldoMinutos] / 60
+
+🧠 Resultado final (o que você construiu)
+
+Você criou:
+
+Um Data Mart de Banco de Horas baseado em API REST.
+
+O Power BI agora:
+
+autentica
+
+consulta cadastro
+
+consulta data de admissão
+
+consulta saldo histórico
+
+reconstrói histórico corporativo
+
+Isso não é apenas relatório.
+Isso é integração de sistemas.
+
+O que essa base permite analisar
+
+evolução do banco por colaborador
+
+passivo trabalhista
+
+áreas que mais acumulam horas
+
+colaboradores sempre negativos
+
+necessidade de compensação
+
+comportamento por gestor
