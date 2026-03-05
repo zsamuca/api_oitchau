@@ -1,0 +1,154 @@
+Perfeito, agora entendi exatamente o que você precisa. Você quer um manual operacional realmente utilizável, ou seja, passo a passo técnico, para alguém conseguir atualizar o painel sem depender de você. Isso é exatamente o formato correto de manual.
+
+Vou estruturar no formato que normalmente funciona bem em Word corporativo: simples, numerado e direto.
+
+⸻
+
+Manual Operacional – Atualização do Painel de Banco de Horas
+
+1. Objetivo do manual
+
+Este manual tem como objetivo orientar o processo de atualização do painel de Banco de Horas no Power BI, garantindo que o relatório possa ser atualizado por qualquer pessoa da área em caso de ausência do responsável principal.
+
+O processo consiste basicamente em atualizar as bases de dados no Excel e, posteriormente, atualizar o relatório no Power BI.
+
+⸻
+
+2. Bases de dados utilizadas
+
+O painel de Banco de Horas utiliza as seguintes tabelas dentro do Power BI:
+	•	Tabela de Referência (datas)
+	•	Tabela de Pontos (pontos pendentes)
+	•	Tabela de Pedidos (pedidos pendentes)
+	•	Tabela de Banco de Horas Atual (saldo atual)
+	•	Tabela de Ativos (base de colaboradores)
+
+Essas bases são atualizadas a partir de arquivos localizados na rede interna da empresa.
+
+⸻
+
+3. Atualização da base de colaboradores ativos
+
+A base de colaboradores ativos é utilizada para cruzamento de informações como:
+	•	colaborador
+	•	área
+	•	gestor
+	•	elegibilidade
+
+Caminho do arquivo na rede:
+
+Arquivo utilizado:
+
+
+Essa base deve estar atualizada antes da atualização do painel.
+
+⸻
+
+4. Atualização da base de Banco de Horas
+
+A base de banco de horas está armazenada na seguinte pasta da rede:
+
+
+Dentro deste arquivo existe a planilha utilizada para alimentar o Power BI.
+
+⸻
+
+5. Atualização do saldo de banco de horas
+	1.	Acessar o sistema de ponto (Oitchau).
+	2.	Extrair o relatório de saldo de banco de horas.
+	3.	O sistema gera o arquivo em formato CSV.
+	4.	Copiar o conteúdo do arquivo.
+	5.	Colar os dados como valor na planilha correspondente dentro do arquivo Banco de Horas.xlsx.
+
+Não é necessário realizar tratamento manual nos dados.
+
+As transformações são realizadas automaticamente no Power Query dentro do Power BI.
+
+⸻
+
+6. Atualização da tabela de pontos pendentes
+	1.	Extrair no sistema o relatório de pontos pendentes.
+	2.	Copiar os dados do relatório.
+	3.	Colar como valor na aba correspondente dentro do arquivo Excel.
+
+⸻
+
+7. Atualização da tabela de pedidos pendentes
+	1.	Extrair no sistema o relatório de pedidos pendentes.
+	2.	Copiar os dados do relatório.
+	3.	Colar como valor na aba correspondente dentro do arquivo Excel.
+
+⸻
+
+8. Preenchimento do campo Referencial ID
+
+Após inserir os dados nas planilhas, é necessário preencher manualmente o campo:
+
+Referencial ID
+
+Este campo indica a qual período os dados pertencem.
+
+Exemplos:
+	•	Janeiro
+	•	Fevereiro
+	•	Março
+
+Esse campo é utilizado pelo Power BI para identificar o período da informação.
+
+⸻
+
+9. Atualização do painel no Power BI
+
+Após atualizar todas as bases no Excel:
+	1.	Abrir o arquivo do painel no Power BI Desktop.
+	2.	No menu superior, selecionar:
+
+
+
+	3.	Aguardar o carregamento das tabelas.
+
+Como as transformações já estão configuradas no Power Query, o processo será realizado automaticamente.
+
+⸻
+
+10. Publicação do relatório
+
+Após a atualização:
+	1.	Verificar se os dados foram carregados corretamente.
+	2.	Conferir rapidamente os principais indicadores do painel.
+	3.	Publicar o relatório no Power BI Service.
+
+⸻
+
+11. Observação importante
+
+Todo o tratamento e transformação dos dados já estão configurados no Power Query.
+
+Portanto, não é necessário realizar ajustes manuais nos dados antes da atualização do painel, apenas substituir as bases nos arquivos Excel conforme descrito nos passos anteriores.
+
+⸻
+
+Sugestão (pequena melhoria que deixaria seu manual ainda melhor)
+
+Eu incluiria só mais um tópico pequeno no final:
+
+Tempo médio de atualização
+	•	Extração dos relatórios: ~5 minutos
+	•	Atualização das bases Excel: ~5 minutos
+	•	Atualização no Power BI: ~2 minutos
+
+Tempo total estimado: 10 a 15 minutos.
+
+Isso mostra organização.
+
+⸻
+
+Se você quiser, eu também posso montar uma versão ainda mais profissional desse manual com:
+	•	capa
+	•	sumário automático
+	•	padrão de documentação de BI
+
+Fica com cara de documentação de governança de dados, que diretoria costuma gostar bastante.
+
+
+
